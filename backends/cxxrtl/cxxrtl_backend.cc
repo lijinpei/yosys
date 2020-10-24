@@ -2391,9 +2391,9 @@ struct CxxrtlWorker {
 		}
 	}
 
-	void check_design(RTLIL::Design *design, bool &has_sync_init, bool &has_packed_mem)
+	void check_design(RTLIL::Design *design, bool &has_sync_init, bool &has_packed_mem, bool &has_wide_ports)
 	{
-		has_sync_init = has_packed_mem = false;
+		has_sync_init = has_packed_mem = has_wide_ports = false;
 
 		for (auto module : design->modules()) {
 			if (module->get_blackbox_attribute() && !module->has_attribute(ID(cxxrtl_blackbox)))
@@ -2411,17 +2411,29 @@ struct CxxrtlWorker {
 						has_sync_init = true;
 
 			for (auto cell : module->cells())
-				if (cell->type == ID($mem))
+				if (cell->type == ID($mem)) {
 					has_packed_mem = true;
+					if (!cell->getParam(ID::RD_WIDE_CONTINUATION).is_fully_zero())
+						has_wide_ports = true;
+					if (!cell->getParam(ID::WR_WIDE_CONTINUATION).is_fully_zero())
+						has_wide_ports = true;
+				}
+
+			for (auto cell : module->cells())
+				if (cell->type.in(ID($memrd), ID($memwr))) {
+					const RTLIL::Memory *memory = module->memories[cell->getParam(ID::MEMID).decode_string()];
+					if (memory->width != cell->getParam(ID::WIDTH).as_int())
+						has_wide_ports = true;
+				}
 		}
 	}
 
 	void prepare_design(RTLIL::Design *design)
 	{
 		bool did_anything = false;
-		bool has_sync_init, has_packed_mem;
+		bool has_sync_init, has_packed_mem, has_wide_ports;
 		log_push();
-		check_design(design, has_sync_init, has_packed_mem);
+		check_design(design, has_sync_init, has_packed_mem, has_wide_ports);
 		if (run_flatten) {
 			Pass::call(design, "flatten");
 			did_anything = true;
@@ -2441,10 +2453,15 @@ struct CxxrtlWorker {
 			Pass::call(design, "memory_unpack");
 			did_anything = true;
 		}
+		// Wide memory read/write ports are not currently natively supported.
+		if (has_wide_ports) {
+			Pass::call(design, "memory_narrow");
+			did_anything = true;
+		}
 		// Recheck the design if it was modified.
-		if (has_sync_init || has_packed_mem)
-			check_design(design, has_sync_init, has_packed_mem);
-		log_assert(!(has_sync_init || has_packed_mem));
+		if (has_sync_init || has_packed_mem || has_wide_ports)
+			check_design(design, has_sync_init, has_packed_mem, has_wide_ports);
+		log_assert(!(has_sync_init || has_packed_mem || has_wide_ports));
 		log_pop();
 		if (did_anything)
 			log_spacer();
