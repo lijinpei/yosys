@@ -161,7 +161,7 @@ endif
 ifeq ($(CONFIG),clang)
 CXX = clang
 LD = clang++
-CXXFLAGS += -std=c++11 -Os
+CXXFLAGS += -std=c++17 -Os
 ABCMKARGS += ARCHFLAGS="-DABC_USE_STDINT_H"
 
 ifneq ($(SANITIZER),)
@@ -184,7 +184,7 @@ endif
 else ifeq ($(CONFIG),gcc)
 CXX = gcc
 LD = gcc
-CXXFLAGS += -std=c++11 -Os
+CXXFLAGS += -std=c++17 -Os
 ABCMKARGS += ARCHFLAGS="-DABC_USE_STDINT_H"
 
 else ifeq ($(CONFIG),gcc-static)
@@ -192,7 +192,7 @@ LD = $(CXX)
 LDFLAGS := $(filter-out -rdynamic,$(LDFLAGS)) -static
 LDLIBS := $(filter-out -lrt,$(LDLIBS))
 CXXFLAGS := $(filter-out -fPIC,$(CXXFLAGS))
-CXXFLAGS += -std=c++11 -Os
+CXXFLAGS += -std=c++17 -Os
 ABCMKARGS = CC="$(CC)" CXX="$(CXX)" LD="$(LD)" ABC_USE_LIBSTDCXX=1 LIBS="-lm -lpthread -static" OPTFLAGS="-O" \
                        ARCHFLAGS="-DABC_USE_STDINT_H -DABC_NO_DYNAMIC_LINKING=1 -Wno-unused-but-set-variable $(ARCHFLAGS)" ABC_USE_NO_READLINE=1
 ifeq ($(DISABLE_ABC_THREADS),1)
